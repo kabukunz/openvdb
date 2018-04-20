@@ -313,7 +313,8 @@ setGridName(GridBase::Ptr grid, py::object strObj)
 {
     if (grid) {
         if (!strObj) { // if name is None
-            grid->removeMeta(GridBase::META_GRID_NAME);
+            //grid->removeMeta(GridBase::META_GRID_NAME);
+			grid->removeMeta("name");
         } else {
             const std::string name = pyutil::extractArg<std::string>(
                 strObj, "setName", /*className=*/nullptr, /*argIdx=*/1, "str");
@@ -328,7 +329,8 @@ setGridCreator(GridBase::Ptr grid, py::object strObj)
 {
     if (grid) {
         if (!strObj) { // if name is None
-            grid->removeMeta(GridBase::META_GRID_CREATOR);
+            //grid->removeMeta(GridBase::META_GRID_CREATOR);
+			grid->removeMeta("creator");
         } else {
             const std::string name = pyutil::extractArg<std::string>(
                 strObj, "setCreator", /*className=*/nullptr, /*argIdx=*/1, "str");
