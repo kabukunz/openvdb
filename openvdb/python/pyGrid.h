@@ -1401,7 +1401,8 @@ template<typename GridType>
 inline py::object
 volumeToComplexMesh(GridType& grid, py::object isovalueObj, 
 	py::object adaptivityObj,
-	py::object smoothvalueObj)
+	py::object smoothvalueObj,
+	py::object widthObj)
 {
 	const double isovalue = pyutil::extractArg<double>(
 		isovalueObj, "convertToComplex", /*className=*/nullptr, /*argIdx=*/2, "float");
@@ -1412,6 +1413,9 @@ volumeToComplexMesh(GridType& grid, py::object isovalueObj,
 	const double smooth = pyutil::extractArg<int>(
 		smoothvalueObj, "convertToComplex", /*className=*/nullptr, /*argIdx=*/4, "int");
 
+	const double width = pyutil::extractArg<int>(
+		widthObj, "convertToComplex", /*className=*/nullptr, /*argIdx=*/5, "int");
+
 	// Mesh the input grid and populate lists of mesh vertices and face vertex indices.
 	std::vector<Vec3s> points;
 	std::vector<Vec4I> quads;
@@ -1420,7 +1424,7 @@ volumeToComplexMesh(GridType& grid, py::object isovalueObj,
 	openvdb::tools::Filter<GridType> filter(grid);
 	
 	if (smooth > 0) {
-		filter.gaussian(1, smooth);
+		filter.gaussian(width, smooth);
 	}
 
 	tools::volumeToMesh(grid, points, triangles, quads, isovalue, adaptivity);
@@ -2440,13 +2444,19 @@ exportGrid()
 				&pyGrid::volumeToComplexMesh<GridType>,
 				(py::arg("isovalue") = 0, 
 					py::arg("adaptivity") = 0,
-					py::arg("smooth") = 0
+					py::arg("smooth") = 0,
+					py::arg("width") = 1
 					),
-				"convertToComplex(isovalue=0, adaptivity=0, smooth=0) -> points, quads\n\n"
-				"(HACKED) Uniformly mesh a scalar grid that has a continuous isosurface\n"
+				"convertToComplex(isovalue=0, adaptivity=0, smooth=0, width=1) -> points, quads\n\n"
+				"First do a Gaussian filtering on the grid.\n\n"
+				"Then adaptively mesh a scalar grid that has a continuous isosurface\n"
 				"at the given isovalue.  Return a NumPy array of world-space\n"
-				"points and a NumPy array of 4-tuples of point indices, which\n"
-				"specify the vertices of the quadrilaterals that form the mesh.")
+				"points and NumPy arrays of 3- and 4-tuples of point indices,\n"
+				"which specify the vertices of the triangles and quadrilaterals\n"
+				"that form the mesh.  Adaptivity can vary from 0 to 1, where 0\n"
+				"produces a high-polygon-count mesh that closely approximates\n"
+				"the isosurface, and 1 produces a lower-polygon-count mesh\n"
+				"with some loss of surface detail.")
             .def("convertToQuads",
                 &pyGrid::volumeToQuadMesh<GridType>,
                 (py::arg("isovalue")=0),

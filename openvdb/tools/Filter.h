@@ -268,7 +268,7 @@ Filter<GridT, MaskT, InterruptT>::AvgI<Axis>::operator()(Coord xyz)
 	float multiplier = 0.f, ro = 1.f;
 	Int32 &i = xyz[Axis], j = i + width;
 	const Int32 center = i;
-	ro = (float)width;
+	ro = (float)width/5.0f;
 	for (i -= width; i <= j; ++i) {
 		// G(x) = 1/sqrt(2*PI)/ro * e ** -(x**2/(2*ro**2))
 		Int32 x = i - center;
