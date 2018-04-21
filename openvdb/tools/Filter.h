@@ -51,7 +51,11 @@
 #include <algorithm> // for std::max()
 #include <functional>
 #include <type_traits>
+#include <cmath>
 
+#define PI 3.141592653589793f
+#define EE 2.718281828459045f
+#define PISQRT 2.5066282746310002f
 
 namespace openvdb {
 OPENVDB_USE_VERSION_NAMESPACE
@@ -198,12 +202,25 @@ private:
         const float frac;
     };
 
+	template<size_t Axis>
+	struct AvgI {
+		AvgI(const GridT* grid, Int32 w) : acc(grid->tree()), width(w) {}
+		inline ValueType operator()(Coord xyz);
+		typename GridT::ConstAccessor acc;
+		const Int32 width;
+	};
+
     // Private filter methods called by tbb::parallel_for threads
     template <typename AvgT>
     void doBox( const RangeType& r, Int32 w);
     void doBoxX(const RangeType& r, Int32 w) { this->doBox<Avg<0> >(r,w); }
     void doBoxZ(const RangeType& r, Int32 w) { this->doBox<Avg<1> >(r,w); }
     void doBoxY(const RangeType& r, Int32 w) { this->doBox<Avg<2> >(r,w); }
+
+	void doBoxXI(const RangeType& r, Int32 w) { this->doBox<AvgI<0> >(r, w); }
+	void doBoxZI(const RangeType& r, Int32 w) { this->doBox<AvgI<1> >(r, w); }
+	void doBoxYI(const RangeType& r, Int32 w) { this->doBox<AvgI<2> >(r, w); }
+
     void doMedian(const RangeType&, int);
     void doOffset(const RangeType&, ValueType);
     /// @return true if the process was interrupted
@@ -239,6 +256,26 @@ Filter<GridT, MaskT, InterruptT>::Avg<Axis>::operator()(Coord xyz)
     Int32 &i = xyz[Axis], j = i + width;
     for (i -= width; i <= j; ++i) filter_internal::accum(sum, acc.getValue(xyz));
     return static_cast<ValueType>(sum * frac);
+}
+
+
+template<typename GridT, typename MaskT, typename InterruptT>
+template<size_t Axis>
+inline typename GridT::ValueType
+Filter<GridT, MaskT, InterruptT>::AvgI<Axis>::operator()(Coord xyz)
+{
+	ValueType sum = zeroVal<ValueType>();
+	float multiplier = 0.f, ro = 1.f;
+	Int32 &i = xyz[Axis], j = i + width;
+	const Int32 center = i;
+	ro = (float)width;
+	for (i -= width; i <= j; ++i) {
+		// G(x) = 1/sqrt(2*PI)/ro * e ** -(x**2/(2*ro**2))
+		Int32 x = i - center;
+		multiplier = 1.f / PISQRT / ro * std::pow(EE, -x*x / (2 * ro*ro));
+		filter_internal::accum(sum, multiplier * acc.getValue(xyz));
+	}
+	return static_cast<ValueType>(sum);
 }
 
 
@@ -285,16 +322,14 @@ Filter<GridT, MaskT, InterruptT>::gaussian(int width, int iterations, const Mask
     LeafManagerType leafs(mGrid->tree(), 1, mGrainSize==0);
 
     for (int i=0; i<iterations; ++i) {
-        for (int n=0; n<4 && !this->wasInterrupted(); ++n) {
-            mTask = std::bind(&Filter::doBoxX, std::placeholders::_1, std::placeholders::_2, w);
-            this->cook(leafs);
+        mTask = std::bind(&Filter::doBoxXI, std::placeholders::_1, std::placeholders::_2, w);
+        this->cook(leafs);
 
-            mTask = std::bind(&Filter::doBoxY, std::placeholders::_1, std::placeholders::_2, w);
-            this->cook(leafs);
+        mTask = std::bind(&Filter::doBoxYI, std::placeholders::_1, std::placeholders::_2, w);
+        this->cook(leafs);
 
-            mTask = std::bind(&Filter::doBoxZ, std::placeholders::_1, std::placeholders::_2, w);
-            this->cook(leafs);
-        }
+        mTask = std::bind(&Filter::doBoxZI, std::placeholders::_1, std::placeholders::_2, w);
+        this->cook(leafs);
     }
 
     if (mInterrupter) mInterrupter->end();
