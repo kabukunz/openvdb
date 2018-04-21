@@ -153,12 +153,11 @@ public:
 
     /// @brief One iteration of a fast separable Gaussian filter.
     ///
-    /// @note This is approximated as 4 iterations of a separable mean filter
-    /// which typically leads an approximation that's better than 95%!
     /// @param width The width of the mean-value filter is 2*width+1 voxels.
     /// @param iterations Number of times the mean-value filter is applied.
+	/// @param quality of the Gaussian integration
     /// @param mask Optional alpha mask.
-    void gaussian(int width = 1, int iterations = 1, const MaskType* mask = nullptr);
+    void gaussian(int width = 1, int iterations = 1, float quality = 2.0f, const MaskType* mask = nullptr);
 
     /// @brief One iteration of a median-value filter
     ///
@@ -204,10 +203,11 @@ private:
 
 	template<size_t Axis>
 	struct AvgI {
-		AvgI(const GridT* grid, Int32 w) : acc(grid->tree()), width(w) {}
+		AvgI(const GridT* grid, Int32 w, float q) : acc(grid->tree()), width(w), quality(q) {}
 		inline ValueType operator()(Coord xyz);
 		typename GridT::ConstAccessor acc;
 		const Int32 width;
+		const float quality;
 	};
 
     // Private filter methods called by tbb::parallel_for threads
@@ -217,9 +217,11 @@ private:
     void doBoxZ(const RangeType& r, Int32 w) { this->doBox<Avg<1> >(r,w); }
     void doBoxY(const RangeType& r, Int32 w) { this->doBox<Avg<2> >(r,w); }
 
-	void doBoxXI(const RangeType& r, Int32 w) { this->doBox<AvgI<0> >(r, w); }
-	void doBoxZI(const RangeType& r, Int32 w) { this->doBox<AvgI<1> >(r, w); }
-	void doBoxYI(const RangeType& r, Int32 w) { this->doBox<AvgI<2> >(r, w); }
+	template <typename AvgT>
+	void doBoxI(const RangeType& r, Int32 w, float q);
+	void doBoxXI(const RangeType& r, Int32 w, float q) { this->doBoxI<AvgI<0> >(r, w, q); }
+	void doBoxZI(const RangeType& r, Int32 w, float q) { this->doBoxI<AvgI<1> >(r, w, q); }
+	void doBoxYI(const RangeType& r, Int32 w, float q) { this->doBoxI<AvgI<2> >(r, w, q); }
 
     void doMedian(const RangeType&, int);
     void doOffset(const RangeType&, ValueType);
@@ -265,17 +267,19 @@ inline typename GridT::ValueType
 Filter<GridT, MaskT, InterruptT>::AvgI<Axis>::operator()(Coord xyz)
 {
 	ValueType sum = zeroVal<ValueType>();
-	float multiplier = 0.f, ro = 1.f;
+	float multiplier = 0.f, ro = 1.f, error = 0.f;
 	Int32 &i = xyz[Axis], j = i + width;
 	const Int32 center = i;
-	ro = (float)width/5.0f;
+	ro = (float)width/quality;
+	if (ro < 1.0f) ro = 1.0f;
 	for (i -= width; i <= j; ++i) {
 		// G(x) = 1/sqrt(2*PI)/ro * e ** -(x**2/(2*ro**2))
 		Int32 x = i - center;
 		multiplier = 1.f / PISQRT / ro * std::pow(EE, -x*x / (2 * ro*ro));
+		error += multiplier;
 		filter_internal::accum(sum, multiplier * acc.getValue(xyz));
 	}
-	return static_cast<ValueType>(sum);
+	return static_cast<ValueType>(sum/error);
 }
 
 
@@ -311,24 +315,25 @@ Filter<GridT, MaskT, InterruptT>::mean(int width, int iterations, const MaskType
 
 template<typename GridT, typename MaskT, typename InterruptT>
 inline void
-Filter<GridT, MaskT, InterruptT>::gaussian(int width, int iterations, const MaskType* mask)
+Filter<GridT, MaskT, InterruptT>::gaussian(int width, int iterations, float quality, const MaskType* mask)
 {
     mMask = mask;
 
     if (mInterrupter) mInterrupter->start("Applying Gaussian filter");
 
     const int w = std::max(1, width);
+	const float q = std::max(2.0f, quality);
 
     LeafManagerType leafs(mGrid->tree(), 1, mGrainSize==0);
 
     for (int i=0; i<iterations; ++i) {
-        mTask = std::bind(&Filter::doBoxXI, std::placeholders::_1, std::placeholders::_2, w);
+        mTask = std::bind(&Filter::doBoxXI, std::placeholders::_1, std::placeholders::_2, w, q);
         this->cook(leafs);
 
-        mTask = std::bind(&Filter::doBoxYI, std::placeholders::_1, std::placeholders::_2, w);
+        mTask = std::bind(&Filter::doBoxYI, std::placeholders::_1, std::placeholders::_2, w, q);
         this->cook(leafs);
 
-        mTask = std::bind(&Filter::doBoxZI, std::placeholders::_1, std::placeholders::_2, w);
+        mTask = std::bind(&Filter::doBoxZI, std::placeholders::_1, std::placeholders::_2, w, q);
         this->cook(leafs);
     }
 
@@ -417,6 +422,24 @@ Filter<GridT, MaskT, InterruptT>::doBox(const RangeType& range, Int32 w)
             }
         }
     }
+}
+
+
+/// One dimensional convolution of a separable filter
+template<typename GridT, typename MaskT, typename InterruptT>
+template <typename AvgT>
+inline void
+Filter<GridT, MaskT, InterruptT>::doBoxI(const RangeType& range, Int32 w, float q)
+{
+	this->wasInterrupted();
+	AvgT avg(mGrid, w, q);
+
+	for (LeafIterT leafIter = range.begin(); leafIter; ++leafIter) {
+		BufferT& buffer = leafIter.buffer(1);
+		for (VoxelCIterT iter = leafIter->cbeginValueOn(); iter; ++iter) {
+			buffer.setValue(iter.pos(), avg(iter.getCoord()));
+		}
+	}
 }
 
 
