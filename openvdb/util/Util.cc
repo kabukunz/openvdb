@@ -35,9 +35,10 @@ namespace openvdb {
 OPENVDB_USE_VERSION_NAMESPACE
 namespace OPENVDB_VERSION_NAME {
 namespace util {
-	/*
-const uint32_t INVALID_IDX = 0xFFFFFFFF;
-//const Index32 INVALID_IDX = std::numeric_limits<Index32>::max();
+
+/*
+
+const Index32 INVALID_IDX = std::numeric_limits<Index32>::max();
 
 const Coord COORD_OFFSETS[26] =
 {
@@ -68,7 +69,9 @@ const Coord COORD_OFFSETS[26] =
     Coord( 1,  1,  1),
     Coord( 1,  1, -1)
 };
+
 */
+
 
 } // namespace util
 } // namespace OPENVDB_VERSION_NAME

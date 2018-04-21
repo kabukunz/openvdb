@@ -67,6 +67,8 @@
 #include "openvdb/tools/ChangeBackground.h"
 #include "openvdb/tools/Prune.h"
 #include "openvdb/tools/SignedFloodFill.h"
+#include "openvdb/tools/Filter.h"
+
 #include "pyutil.h"
 #include "pyAccessor.h" // for pyAccessor::AccessorWrap
 #include "pyopenvdb.h"
@@ -1392,6 +1394,62 @@ meshToLevelSet(py::object pointsObj, py::object trianglesObj, py::object quadsOb
 }
 
 
+// Extending OpenVDB Python functionality
+// Function fails if no Numpy used
+
+template<typename GridType>
+inline py::object
+volumeToComplexMesh(GridType& grid, py::object isovalueObj, 
+	py::object adaptivityObj,
+	py::object smoothvalueObj)
+{
+	const double isovalue = pyutil::extractArg<double>(
+		isovalueObj, "convertToComplex", /*className=*/nullptr, /*argIdx=*/2, "float");
+
+	const double adaptivity = pyutil::extractArg<double>(
+		adaptivityObj, "convertToComplex", /*className=*/nullptr, /*argIdx=*/3, "float");
+
+	const double smooth = pyutil::extractArg<int>(
+		smoothvalueObj, "convertToComplex", /*className=*/nullptr, /*argIdx=*/4, "int");
+
+	// Mesh the input grid and populate lists of mesh vertices and face vertex indices.
+	std::vector<Vec3s> points;
+	std::vector<Vec4I> quads;
+	std::vector<Vec3I> triangles;
+
+	openvdb::tools::Filter<GridType> filter(grid);
+	
+	if (smooth > 0) {
+		filter.gaussian(1, smooth);
+	}
+
+	tools::volumeToMesh(grid, points, triangles, quads, isovalue, adaptivity);
+
+	//---------- write out
+	const py::object own;
+	auto dtype = py::numpy::dtype::get_builtin<Vec3s::value_type>();
+	auto shape = py::make_tuple(points.size(), 3);
+	auto stride = py::make_tuple(3 * sizeof(Vec3s::value_type), sizeof(Vec3s::value_type));
+	// Create a deep copy of the array (because the point vector will be destroyed
+	// when this function returns).
+	auto pointArrayObj = py::numpy::from_data(points.data(), dtype, shape, stride, own).copy();
+
+	dtype = py::numpy::dtype::get_builtin<Vec3I::value_type>();
+	shape = py::make_tuple(triangles.size(), 3);
+	stride = py::make_tuple(3 * sizeof(Vec3I::value_type), sizeof(Vec3I::value_type));
+	auto triangleArrayObj = py::numpy::from_data(
+		triangles.data(), dtype, shape, stride, own).copy(); // deep copy
+
+	dtype = py::numpy::dtype::get_builtin<Vec4I::value_type>();
+	shape = py::make_tuple(quads.size(), 4);
+	stride = py::make_tuple(4 * sizeof(Vec4I::value_type), sizeof(Vec4I::value_type));
+	auto quadArrayObj = py::numpy::from_data(
+		quads.data(), dtype, shape, stride, own).copy(); // deep copy
+
+	return py::make_tuple(pointArrayObj, triangleArrayObj, quadArrayObj);
+}
+
+
 template<typename GridType>
 inline py::object
 volumeToQuadMesh(const GridType& grid, py::object isovalueObj)
@@ -2378,6 +2436,17 @@ exportGrid()
                 + "-dimensional array with values\n"
                 "from this grid, starting at voxel (i, j, k).").c_str())
 
+			.def("convertToComplex",
+				&pyGrid::volumeToComplexMesh<GridType>,
+				(py::arg("isovalue") = 0, 
+					py::arg("adaptivity") = 0,
+					py::arg("smooth") = 0
+					),
+				"convertToComplex(isovalue=0, adaptivity=0, smooth=0) -> points, quads\n\n"
+				"(HACKED) Uniformly mesh a scalar grid that has a continuous isosurface\n"
+				"at the given isovalue.  Return a NumPy array of world-space\n"
+				"points and a NumPy array of 4-tuples of point indices, which\n"
+				"specify the vertices of the quadrilaterals that form the mesh.")
             .def("convertToQuads",
                 &pyGrid::volumeToQuadMesh<GridType>,
                 (py::arg("isovalue")=0),
