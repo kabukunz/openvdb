@@ -42,6 +42,8 @@ OPENVDB_USE_VERSION_NAMESPACE
 namespace OPENVDB_VERSION_NAME {
 namespace util {
 
+#ifdef WIN32
+
 OPENVDB_API extern const Index32 INVALID_IDX = 0xFFFFFFFF;
 
 OPENVDB_API extern const Coord COORD_OFFSETS[26] =
@@ -73,6 +75,14 @@ OPENVDB_API extern const Coord COORD_OFFSETS[26] =
 	Coord(1,  1,  1),
 	Coord(1,  1, -1)
 };
+
+#else
+
+OPENVDB_API extern const Index32 INVALID_IDX;
+
+OPENVDB_API extern const Coord COORD_OFFSETS[26];
+
+#endif
 
 
 ////////////////////////////////////////

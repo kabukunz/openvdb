@@ -36,7 +36,9 @@ OPENVDB_USE_VERSION_NAMESPACE
 namespace OPENVDB_VERSION_NAME {
 namespace util {
 
-/*
+#ifdef WIN32
+
+#else
 
 const Index32 INVALID_IDX = std::numeric_limits<Index32>::max();
 
@@ -70,7 +72,7 @@ const Coord COORD_OFFSETS[26] =
     Coord( 1,  1, -1)
 };
 
-*/
+#endif
 
 
 } // namespace util

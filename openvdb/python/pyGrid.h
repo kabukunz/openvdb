@@ -315,8 +315,11 @@ setGridName(GridBase::Ptr grid, py::object strObj)
 {
     if (grid) {
         if (!strObj) { // if name is None
-            //grid->removeMeta(GridBase::META_GRID_NAME);
+#ifdef WIN32
 			grid->removeMeta("name");
+#else
+            grid->removeMeta(GridBase::META_GRID_NAME);
+#endif
         } else {
             const std::string name = pyutil::extractArg<std::string>(
                 strObj, "setName", /*className=*/nullptr, /*argIdx=*/1, "str");
@@ -331,8 +334,11 @@ setGridCreator(GridBase::Ptr grid, py::object strObj)
 {
     if (grid) {
         if (!strObj) { // if name is None
-            //grid->removeMeta(GridBase::META_GRID_CREATOR);
+#ifdef WIN32
 			grid->removeMeta("creator");
+#else
+            grid->removeMeta(GridBase::META_GRID_CREATOR);
+#endif
         } else {
             const std::string name = pyutil::extractArg<std::string>(
                 strObj, "setCreator", /*className=*/nullptr, /*argIdx=*/1, "str");
@@ -1435,26 +1441,63 @@ volumeToComplexMesh(GridType& grid, py::object isovalueObj,
 
 	tools::volumeToMesh(grid, points, triangles, quads, isovalue, adaptivity);
 
-	//---------- write out
-	const py::object own;
-	auto dtype = py::numpy::dtype::get_builtin<Vec3s::value_type>();
-	auto shape = py::make_tuple(points.size(), 3);
-	auto stride = py::make_tuple(3 * sizeof(Vec3s::value_type), sizeof(Vec3s::value_type));
-	// Create a deep copy of the array (because the point vector will be destroyed
-	// when this function returns).
-	auto pointArrayObj = py::numpy::from_data(points.data(), dtype, shape, stride, own).copy();
+#ifdef PY_OPENVDB_USE_BOOST_PYTHON_NUMPY
+    const py::object own;
+    auto dtype = py::numpy::dtype::get_builtin<Vec3s::value_type>();
+    auto shape = py::make_tuple(points.size(), 3);
+    auto stride = py::make_tuple(3 * sizeof(Vec3s::value_type), sizeof(Vec3s::value_type));
+    // Create a deep copy of the array (because the point vector will be destroyed
+    // when this function returns).
+    auto pointArrayObj = py::numpy::from_data(points.data(), dtype, shape, stride, own).copy();
 
-	dtype = py::numpy::dtype::get_builtin<Vec3I::value_type>();
-	shape = py::make_tuple(triangles.size(), 3);
-	stride = py::make_tuple(3 * sizeof(Vec3I::value_type), sizeof(Vec3I::value_type));
-	auto triangleArrayObj = py::numpy::from_data(
-		triangles.data(), dtype, shape, stride, own).copy(); // deep copy
+    dtype = py::numpy::dtype::get_builtin<Vec3I::value_type>();
+    shape = py::make_tuple(triangles.size(), 3);
+    stride = py::make_tuple(3 * sizeof(Vec3I::value_type), sizeof(Vec3I::value_type));
+    auto triangleArrayObj = py::numpy::from_data(
+        triangles.data(), dtype, shape, stride, own).copy(); // deep copy
 
-	dtype = py::numpy::dtype::get_builtin<Vec4I::value_type>();
-	shape = py::make_tuple(quads.size(), 4);
-	stride = py::make_tuple(4 * sizeof(Vec4I::value_type), sizeof(Vec4I::value_type));
-	auto quadArrayObj = py::numpy::from_data(
-		quads.data(), dtype, shape, stride, own).copy(); // deep copy
+    dtype = py::numpy::dtype::get_builtin<Vec4I::value_type>();
+    shape = py::make_tuple(quads.size(), 4);
+    stride = py::make_tuple(4 * sizeof(Vec4I::value_type), sizeof(Vec4I::value_type));
+    auto quadArrayObj = py::numpy::from_data(
+        quads.data(), dtype, shape, stride, own).copy(); // deep copy
+#else // !defined PY_OPENVDB_USE_BOOST_PYTHON_NUMPY
+    // Copy vertices into an N x 3 NumPy array.
+    py::object pointArrayObj = py::numeric::array(py::list(), "float32");
+    if (!points.empty()) {
+        npy_intp dims[2] = { npy_intp(points.size()), 3 };
+        // Construct a NumPy array that wraps the point vector.
+        if (PyArrayObject* arrayObj = reinterpret_cast<PyArrayObject*>(
+            PyArray_SimpleNewFromData(/*dims=*/2, dims, NPY_FLOAT, &points[0])))
+        {
+            // Create a deep copy of the array (because the point vector will be
+            // destroyed when this function returns).
+            pointArrayObj = copyNumPyArray(arrayObj, NPY_CORDER);
+        }
+    }
+
+    // Copy triangular face indices into an N x 3 NumPy array.
+    py::object triangleArrayObj = py::numeric::array(py::list(), "uint32");
+    if (!triangles.empty()) {
+        npy_intp dims[2] = { npy_intp(triangles.size()), 3 };
+        if (PyArrayObject* arrayObj = reinterpret_cast<PyArrayObject*>(
+            PyArray_SimpleNewFromData(/*dims=*/2, dims, NPY_UINT32, &triangles[0])))
+        {
+            triangleArrayObj = copyNumPyArray(arrayObj, NPY_CORDER);
+        }
+    }
+
+    // Copy quadrilateral face indices into an N x 4 NumPy array.
+    py::object quadArrayObj = py::numeric::array(py::list(), "uint32");
+    if (!quads.empty()) {
+        npy_intp dims[2] = { npy_intp(quads.size()), 4 };
+        if (PyArrayObject* arrayObj = reinterpret_cast<PyArrayObject*>(
+            PyArray_SimpleNewFromData(/*dims=*/2, dims, NPY_UINT32, &quads[0])))
+        {
+            quadArrayObj = copyNumPyArray(arrayObj, NPY_CORDER);
+        }
+    }
+#endif // PY_OPENVDB_USE_BOOST_PYTHON_NUMPY
 
 	return py::make_tuple(pointArrayObj, triangleArrayObj, quadArrayObj);
 }
