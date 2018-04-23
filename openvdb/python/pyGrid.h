@@ -1403,7 +1403,7 @@ volumeToComplexMesh(GridType& grid, py::object isovalueObj,
 	py::object adaptivityObj,
 	py::object smoothvalueObj,
 	py::object widthObj,
-	py::object qualityObj
+	py::object sigmaObj
 	)
 {
 	const double isovalue = pyutil::extractArg<double>(
@@ -1418,8 +1418,8 @@ volumeToComplexMesh(GridType& grid, py::object isovalueObj,
 	const double width = pyutil::extractArg<int>(
 		widthObj, "convertToComplex", /*className=*/nullptr, /*argIdx=*/5, "int");
 
-	const double quality = pyutil::extractArg<double>(
-		qualityObj, "convertToComplex", /*className=*/nullptr, /*argIdx=*/6, "float");
+	const double sigma = pyutil::extractArg<double>(
+		sigmaObj, "convertToComplex", /*className=*/nullptr, /*argIdx=*/6, "float");
 
 	// Mesh the input grid and populate lists of mesh vertices and face vertex indices.
 	std::vector<Vec3s> points;
@@ -1430,7 +1430,7 @@ volumeToComplexMesh(GridType& grid, py::object isovalueObj,
 	openvdb::tools::Filter<GridType> filter(grid);
 	
 	if (smooth > 0) {
-		filter.gaussian(width, smooth, quality);
+		filter.gaussian(width, smooth, sigma);
 	}
 
 	tools::volumeToMesh(grid, points, triangles, quads, isovalue, adaptivity);
@@ -2451,10 +2451,10 @@ exportGrid()
 				(py::arg("isovalue") = 0, 
 					py::arg("adaptivity") = 0,
 					py::arg("smooth") = 0,
-					py::arg("width") = 1,
-					py::arg("quality") = 2.0
+					py::arg("width") = 1
+					//py::arg("sigma") = 2.0
 					),
-				"convertToComplex(isovalue=0, adaptivity=0, smooth=0, width=1, quality=2) -> points, quads\n\n"
+				"convertToComplex(isovalue=0, adaptivity=0, smooth=0, width=1) -> points, quads\n\n"
 				"First do a Gaussian filtering on the grid.\n\n"
 				"Then adaptively mesh a scalar grid that has a continuous isosurface\n"
 				"at the given isovalue.  Return a NumPy array of world-space\n"

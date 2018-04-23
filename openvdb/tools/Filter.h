@@ -155,9 +155,9 @@ public:
     ///
     /// @param width The width of the mean-value filter is 2*width+1 voxels.
     /// @param iterations Number of times the mean-value filter is applied.
-	/// @param quality of the Gaussian integration
+	/// @param sigma of the Gaussian distribution
     /// @param mask Optional alpha mask.
-    void gaussian(int width = 1, int iterations = 1, float quality = 2.0f, const MaskType* mask = nullptr);
+    void gaussian(int width=1, int iterations=1, float sigma=1.0, const MaskType* mask = nullptr);
 
     /// @brief One iteration of a median-value filter
     ///
@@ -203,11 +203,11 @@ private:
 
 	template<size_t Axis>
 	struct AvgI {
-		AvgI(const GridT* grid, Int32 w, float q) : acc(grid->tree()), width(w), quality(q) {}
+		AvgI(const GridT* grid, Int32 w, float q) : acc(grid->tree()), width(w), sigma(q) {}
 		inline ValueType operator()(Coord xyz);
 		typename GridT::ConstAccessor acc;
 		const Int32 width;
-		const float quality;
+		const float sigma;
 	};
 
     // Private filter methods called by tbb::parallel_for threads
@@ -266,20 +266,26 @@ template<size_t Axis>
 inline typename GridT::ValueType
 Filter<GridT, MaskT, InterruptT>::AvgI<Axis>::operator()(Coord xyz)
 {
+	// Sampled Gaussian kernel
 	ValueType sum = zeroVal<ValueType>();
-	float multiplier = 0.f, ro = 1.f, error = 0.f;
-	Int32 &i = xyz[Axis], j = i + width;
-	const Int32 center = i;
-	ro = (float)width/quality;
-	if (ro < 1.0f) ro = 1.0f;
-	for (i -= width; i <= j; ++i) {
-		// G(x) = 1/sqrt(2*PI)/ro * e ** -(x**2/(2*ro**2))
+	float multiplier = 0.f, error = 0.f;
+	//float sigma = std::sqrt((float)width / 4.0f);
+	// M = C*sqrt(t) + 1
+	//int M = (int)(5.0f * sigma + 1.0f);
+	int M = width;
+
+	Int32 &i = xyz[Axis], j = i + M;
+	Int32 center = i;
+
+	for (i -= M; i <= j; ++i) {
+		// G(x) = 1/sqrt(2*PI)/sigma * e ** -(x**2/(2*sigma**2))
 		Int32 x = i - center;
-		multiplier = 1.f / PISQRT / ro * std::pow(EE, -x*x / (2 * ro*ro));
+		multiplier = 1.f / PISQRT / sigma * std::pow(EE, -x*x / (2 * sigma*sigma));
 		error += multiplier;
 		filter_internal::accum(sum, multiplier * acc.getValue(xyz));
 	}
-	return static_cast<ValueType>(sum/error);
+	//return static_cast<ValueType>(sum / error);
+	return static_cast<ValueType>(sum);
 }
 
 
@@ -315,14 +321,14 @@ Filter<GridT, MaskT, InterruptT>::mean(int width, int iterations, const MaskType
 
 template<typename GridT, typename MaskT, typename InterruptT>
 inline void
-Filter<GridT, MaskT, InterruptT>::gaussian(int width, int iterations, float quality, const MaskType* mask)
+Filter<GridT, MaskT, InterruptT>::gaussian(int width, int iterations, float sigma, const MaskType* mask)
 {
     mMask = mask;
 
     if (mInterrupter) mInterrupter->start("Applying Gaussian filter");
 
-    const int w = std::max(1, width);
-	const float q = std::max(2.0f, quality);
+	const float q = std::max(0.1f, sigma);
+	const int w = std::max(1, width);
 
     LeafManagerType leafs(mGrid->tree(), 1, mGrainSize==0);
 
