@@ -1401,7 +1401,6 @@ meshToLevelSet(py::object pointsObj, py::object trianglesObj, py::object quadsOb
 
 
 // Extending OpenVDB Python functionality
-// Function fails if no Numpy used
 
 template<typename GridType>
 inline py::object
@@ -2494,8 +2493,8 @@ exportGrid()
 				(py::arg("isovalue") = 0, 
 					py::arg("adaptivity") = 0,
 					py::arg("smooth") = 0,
-					py::arg("width") = 1
-					//py::arg("sigma") = 2.0
+					py::arg("width") = 1,
+					py::arg("sigma") = 2.0
 					),
 				"convertToComplex(isovalue=0, adaptivity=0, smooth=0, width=1) -> points, quads\n\n"
 				"First do a Gaussian filtering on the grid.\n\n"
