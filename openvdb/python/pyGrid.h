@@ -63,6 +63,7 @@
 #include "openvdb/io/Stream.h"
 #include "openvdb/math/Math.h" // for math::isExactlyEqual()
 #include "openvdb/tools/LevelSetSphere.h"
+#include "openvdb/tools/ParticlesToLevelSet.h"
 #include "openvdb/tools/Dense.h"
 #include "openvdb/tools/ChangeBackground.h"
 #include "openvdb/tools/Prune.h"
@@ -1400,6 +1401,157 @@ meshToLevelSet(py::object pointsObj, py::object trianglesObj, py::object quadsOb
 }
 
 
+//template<typename GridType>
+//inline typename GridType::Ptr
+template<typename GridType>
+inline openvdb::FloatGrid::Ptr
+pointsToLevelSet(
+	py::object pointsObj,
+	py::object xformObj,
+	py::object radiusObj)
+{
+	class ParticleList {
+	private:
+		std::vector<Vec3s> *points;
+		openvdb::Real psize;
+	public:
+		ParticleList(std::vector<Vec3s> *p) {
+			points = p;
+			psize = 0.0f;
+		}
+
+		using PosType = openvdb::Vec3R;
+		// Return the total number of particles in list.
+		// Always required!
+		size_t size() const {
+			return points->size();
+		}
+
+		// Get the world space position of the nth particle.
+		// Required by ParticledToLevelSet::rasterizeSphere(*this,radius).
+		void getPos(size_t n, Vec3R& xyz) const {
+			const Vec3s p = points->at(n);
+			xyz[0] = p[0], xyz[1] = p[1], xyz[2] = p[2];
+		}
+
+		// Get the world space position and radius of the nth particle.
+		// Required by ParticledToLevelSet::rasterizeSphere(*this).
+		void getPosRad(size_t n, Vec3R& xyz, Real& rad) const {
+			const Vec3s p = points->at(n);
+			xyz[0] = p[0], xyz[1] = p[1], xyz[2] = p[2];
+			rad = psize;
+		}
+		// Get the world space position, radius and velocity of the nth particle.
+		// Required by ParticledToLevelSet::rasterizeSphere(*this,radius).
+		void getPosRadVel(size_t n, Vec3R& xyz, Real& rad, Vec3R& vel) const {
+			const Vec3s p = points->at(n);
+			xyz[0] = p[0], xyz[1] = p[1], xyz[2] = p[2];
+			rad = psize;
+		}
+
+		// Get the attribute of the nth particle. AttributeType is user-defined!
+		// Only required if attribute transfer is enabled in ParticlesToLevelSet.
+		void getAtt(size_t n, openvdb::Int32& att) const {
+			att = 0;
+		};
+	};
+
+	struct Local {
+		// Return the name of the Python grid method (for use in error messages).
+		static const char* methodName() { return "createLevelSetFromPoints"; }
+
+		// Raise a Python exception if the given NumPy array does not have dimensions M x N
+		// or does not have an integer or floating-point data type.
+		static void validate2DNumPyArray(NumPyArrayType arrayObj,
+			const size_t N, const char* desiredType)
+		{
+			const auto dims = arrayDimensions(arrayObj);
+
+			bool wrongArrayType = false;
+			// Check array dimensions.
+			if (dims.size() != 2 || dims[1] != N) {
+				wrongArrayType = true;
+			}
+			else {
+				// Check array data type.
+				switch (arrayTypeId(arrayObj)) {
+				case DtId::FLOAT: case DtId::DOUBLE: //case DtId::HALF:
+				case DtId::INT16: case DtId::INT32: case DtId::INT64:
+				case DtId::UINT32: case DtId::UINT64: break;
+				default: wrongArrayType = true; break;
+				}
+			}
+			if (wrongArrayType) {
+				// Generate an error message and raise a Python TypeError.
+				std::ostringstream os;
+				os << "expected N x 3 numpy.ndarray of " << desiredType << ", found ";
+				switch (dims.size()) {
+				case 0: os << "zero-dimensional"; break;
+				case 1: os << "one-dimensional"; break;
+				default:
+					os << dims[0];
+					for (size_t i = 1; i < dims.size(); ++i) { os << " x " << dims[i]; }
+					break;
+				}
+				os << " " << arrayTypeName(arrayObj) << " array as argument 1 to "
+					<< pyutil::GridTraits<GridType>::name() << "." << methodName() << "()";
+				PyErr_SetString(PyExc_TypeError, os.str().c_str());
+				py::throw_error_already_set();
+			}
+		}
+	};
+
+	// Extract the list of mesh vertices from the arguments to this method.
+	std::vector<Vec3s> points;
+	if (!pointsObj.is_none()) {
+		// Extract a reference to (not a copy of) a NumPy array argument,
+		// or throw an exception if the argument is not a NumPy array object.
+		auto arrayObj = extractValueArg<GridType, NumPyArrayType>(
+			pointsObj, Local::methodName(), /*argIdx=*/1, "numpy.ndarray");
+
+		// Throw an exception if the array has the wrong type or dimensions.
+		Local::validate2DNumPyArray(arrayObj, /*N=*/3, /*desiredType=*/"float");
+
+		// Copy values from the array to the vector.
+		copyVecArray(arrayObj, points);
+	}
+
+	// Extract the transform from the arguments to this method.
+	math::Transform::Ptr xform = math::Transform::createLinearTransform();
+	if (!xformObj.is_none()) {
+		xform = extractValueArg<GridType, math::Transform::Ptr>(
+			xformObj, Local::methodName(), /*argIdx=*/2, "Transform");
+	}
+
+	const float radius = pyutil::extractArg<float>(
+		radiusObj, "pointsToLevelSet", /*className=*/nullptr, /*argIdx=*/3, "float");
+
+	openvdb::FloatGrid::Ptr outputGrid;
+
+	float background = xform->voxelSize()[0] * 2.0f; // / 8.0f;
+
+	outputGrid = openvdb::FloatGrid::create(background);
+	outputGrid->setGridClass(openvdb::GRID_LEVEL_SET);
+	outputGrid->setTransform(xform);
+
+	openvdb::tools::ParticlesToLevelSet<openvdb::FloatGrid, openvdb::Int32> raster(*outputGrid);
+
+	raster.setRmin(1.0f);
+	raster.setRmax(1e15f);
+
+	ParticleList paList(&points);
+
+	raster.rasterizeSpheres(paList, radius);
+
+	// always prune to produce a valid narrow-band level set.
+	raster.finalize(true);
+	
+	//openvdb::Int32Grid::Ptr closestPtnIdxGrid = raster.attributeGrid();
+
+	return outputGrid;
+}
+
+
 // Extending OpenVDB Python functionality
 
 template<typename GridType>
@@ -1417,7 +1569,7 @@ volumeToComplexMesh(GridType& grid, py::object isovalueObj,
 	const double adaptivity = pyutil::extractArg<double>(
 		adaptivityObj, "convertToComplex", /*className=*/nullptr, /*argIdx=*/3, "float");
 
-	const double smooth = pyutil::extractArg<int>(
+	const int smooth = pyutil::extractArg<int>(
 		smoothvalueObj, "convertToComplex", /*className=*/nullptr, /*argIdx=*/4, "int");
 
 	const double width = pyutil::extractArg<int>(
@@ -2487,7 +2639,6 @@ exportGrid()
                 + std::string(openvdb::VecTraits<ValueT>::IsVec ? "four" : "three")
                 + "-dimensional array with values\n"
                 "from this grid, starting at voxel (i, j, k).").c_str())
-
 			.def("convertToComplex",
 				&pyGrid::volumeToComplexMesh<GridType>,
 				(py::arg("isovalue") = 0, 
@@ -2526,6 +2677,16 @@ exportGrid()
                 "produces a high-polygon-count mesh that closely approximates\n"
                 "the isosurface, and 1 produces a lower-polygon-count mesh\n"
                 "with some loss of surface detail.")
+
+			.def("createLevelSetFromPoints",
+				&pyGrid::pointsToLevelSet<GridType>,
+				(py::arg("points"),
+					py::arg("transform")=py::object(),
+					py::arg("radius")=py::object()
+					//py::arg("size") = 1.0f
+					),
+				"(TBD) points, transform, radius")
+
             .def("createLevelSetFromPolygons",
                 &pyGrid::meshToLevelSet<GridType>,
                 (py::arg("points"),
