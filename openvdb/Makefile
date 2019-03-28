@@ -85,97 +85,158 @@
 # $(BOOST_PYTHON_LIB) and $(NUMPY_INCL_DIR) below to your local distributions
 # of those libraries.
 #
-shared=no
+
+debug=no
+shared=yes
+
 # The directory into which to install libraries, executables and header files
-DESTDIR := /tmp/OpenVDB
-
-# The directory into which to install libraries (e.g., for Linux multiarch support)
+DESTDIR = $(OPENVDBDIR)/build
 DESTDIR_LIB_DIR := $(DESTDIR)/lib
+PYTHONDIR := $(PYTHONDIR)
+PYTHON_VERSION := $(PYTHON_VERSION)
 
+BOOSTINSTDIR := $(BOOSTDIR)/release
 # The parent directory of the boost/ header directory
-BOOST_INCL_DIR := $(HT)/include
+##BOOST_INCL_DIR := $(HT)/include
+BOOST_INCL_DIR := $(BOOSTINSTDIR)/include/boost-1_66
 # The directory containing libboost_iostreams, libboost_system, etc.
-BOOST_LIB_DIR := $(HDSO)
-BOOST_LIB := -lboost_iostreams -lboost_system
-BOOST_THREAD_LIB := -lboost_thread
+##BOOST_LIB_DIR := $(HDSO)
+BOOST_LIB_DIR := $(BOOSTINSTDIR)/lib
+# BOOST_LIB := -lboost_iostreams -lboost_system
+BOOST_LIB := -lboost_iostreams-clang-darwin42-mt-x64-1_66 -lboost_system-clang-darwin42-mt-x64-1_66
+# BOOST_LIB := -lboost_iostreams-mt -lboost_system-mt
+# BOOST_THREAD_LIB := -lboost_thread
+BOOST_THREAD_LIB := -lboost_thread-clang-darwin42-mt-x64-1_66
+# BOOST_THREAD_LIB := -lboost_thread-mt
 
 # The parent directory of the OpenEXR/ header directory
-EXR_INCL_DIR := $(HT)/include
+#EXR_INCL_DIR := $(HT)/include
+##EXR_INCL_DIR := /rel/folio/openexr/openexr-1.7.1-latest/sys_include
+EXR_INCL_DIR := $(OPENEXRDIR)/include
 # The directory containing IlmImf
-EXR_LIB_DIR := $(HDSO)
+#EXR_LIB_DIR := $(HDSO)
+##EXR_LIB_DIR := /rel/folio/openexr/openexr-1.7.1-latest/library
+EXR_LIB_DIR := $(OPENEXRDIR)/lib
 EXR_LIB := -lIlmImf
 
 # The parent directory of the OpenEXR/ header directory (which contains half.h)
-ILMBASE_INCL_DIR := $(EXR_INCL_DIR)
+#ILMBASE_INCL_DIR := $(EXR_INCL_DIR)
+##ILMBASE_INCL_DIR := /rel/folio/ilmbase/ilmbase-1.0.3-latest/sys_include
+ILMBASE_INCL_DIR := $(ILMBASEDIR)/include
 # The directory containing libIlmThread, libIlmThread, libHalf etc.
-ILMBASE_LIB_DIR := $(EXR_LIB_DIR)
+#ILMBASE_LIB_DIR := $(EXR_LIB_DIR)
+##ILMBASE_LIB_DIR := /rel/folio/ilmbase/ilmbase-1.0.3-latest/library
+ILMBASE_LIB_DIR := $(ILMBASEDIR)/lib
 ILMBASE_LIB := -lIlmThread -lIex -lImath
 HALF_LIB := -lHalf
 
 # The parent directory of the tbb/ header directory
-TBB_INCL_DIR := $(HT)/include
+#TBB_INCL_DIR := $(HT)/include
+TBB_INCL_DIR := $(TBBDIR)/include
 # The directory containing libtbb
-TBB_LIB_DIR := $(HDSO)
+##TBB_LIB_DIR := $(HDSO)
+TBB_LIB_DIR := $(TBBDIR)/lib
 TBB_LIB := -ltbb
 
+
+# BLOSC TEST FAILS, REMOVED
 # The parent directory of the blosc.h header
 # (leave blank if Blosc is unavailable)
-BLOSC_INCL_DIR := $(HT)/include
+##BLOSC_INCL_DIR := $(HT)/include
+BLOSC_INCL_DIR := $(BLOSCDIR)/blosc
 # The directory containing libblosc
-BLOSC_LIB_DIR := $(HDSO)
+##BLOSC_LIB_DIR := $(HDSO)
+BLOSC_LIB_DIR := $(BLOSCDIR)/build/blosc
 BLOSC_LIB := -lblosc
+# BLOSC_LIB := 
 
 # A scalable, concurrent malloc replacement library
 # such as jemalloc (included in the Houdini HDK) or TBB malloc
 # (leave blank if unavailable)
-CONCURRENT_MALLOC_LIB := -ljemalloc
-#CONCURRENT_MALLOC_LIB := -ltbbmalloc_proxy -ltbbmalloc
+# TTB CORES! JEMALLOC CORES!
+# CONCURRENT_MALLOC_LIB := -ljemalloc
+# CONCURRENT_MALLOC_LIB := -ltbbmalloc_proxy -ltbbmalloc
+CONCURRENT_MALLOC_LIB := 
 # The directory containing the malloc replacement library
-CONCURRENT_MALLOC_LIB_DIR := $(HDSO)
+##CONCURRENT_MALLOC_LIB_DIR := $(HDSO)
+# CONCURRENT_MALLOC_LIB_DIR := /usr/local/Cellar/jemalloc/5.0.1/lib/
+# CONCURRENT_MALLOC_LIB_DIR := /usr/local/Cellar/tbb/2018_U3_1/lib
+CONCURRENT_MALLOC_LIB_DIR := 
+
 
 # The parent directory of the cppunit/ header directory
 # (leave blank if CppUnit is unavailable)
-CPPUNIT_INCL_DIR := /rel/map/generic-2013.22/sys_include
+#CPPUNIT_INCL_DIR := /rel/map/generic-2013.22/sys_include
+# CPPUNIT_INCL_DIR := /usr/local/Cellar/cppunit/1.14.0/include
+CPPUNIT_INCL_DIR := 
 # The directory containing libcppunit
-CPPUNIT_LIB_DIR := /rel/depot/third_party_build/cppunit/1.10.2-7/opt-ws5-x86_64-gccWS5_64/lib
-CPPUNIT_LIB := -lcppunit
+##CPPUNIT_LIB_DIR := /rel/depot/third_party_build/cppunit/1.10.2-7/opt-ws5-x86_64-gccWS5_64/lib
+# CPPUNIT_LIB_DIR := /usr/local/Cellar/cppunit/1.14.0/lib
+CPPUNIT_LIB_DIR := 
+# CPPUNIT_LIB := -lcppunit
+CPPUNIT_LIB := 
 
 # The parent directory of the log4cplus/ header directory
 # (leave blank if log4cplus is unavailable)
-LOG4CPLUS_INCL_DIR := /rel/folio/log4cplus/log4cplus-1.1.2-latest/sys_include
+# LOG4CPLUS CORES!
+LOG4CPLUS_INCL_DIR :=
+# LOG4CPLUS_INCL_DIR := /usr/local/Cellar/log4cplus/1.2.1/include
 # The directory containing liblog4cplus
-LOG4CPLUS_LIB_DIR := /rel/folio/log4cplus/log4cplus-1.1.2-latest/library/c++11
-LOG4CPLUS_LIB := -llog4cplus
+##LOG4CPLUS_LIB_DIR := /rel/folio/log4cplus/log4cplus-1.0.3-latest/library
+# LOG4CPLUS_LIB_DIR := /usr/local/Cellar/log4cplus/1.2.1/lib
+LOG4CPLUS_LIB_DIR := 
+# LOG4CPLUS_LIB := -llog4cplus
+LOG4CPLUS_LIB := 
 
 # The directory containing glfw.h
 # (leave blank if GLFW is unavailable)
-GLFW_INCL_DIR := /rel/third_party/glfw/glfw-3.0.1/include
+##GLFW_INCL_DIR := /rel/third_party/glfw/glfw-3.0.1/include
+GLFW_INCL_DIR := $(GLFWDIR)/include
 # The directory containing libglfw
-GLFW_LIB_DIR := /rel/third_party/glfw/glfw-3.0.1/lib
+##GLFW_LIB_DIR := /rel/third_party/glfw/glfw-3.0.1/lib
+GLFW_LIB_DIR := $(GLFWDIR)/lib
 GLFW_LIB := -lglfw
+# GLFW_LIB := 
 # The major version number of the GLFW library
 # (header filenames changed between GLFW 2 and 3, so this must be specified explicitly)
 GLFW_MAJOR_VERSION := 3
 
 # The version of Python for which to build the OpenVDB module
 # (leave blank if Python is unavailable)
-PYTHON_VERSION := 2.7
+##PYTHON_VERSION := 2.6
+# PYTHON_VERSION := 3.5m
+# PYTHONDIR := /Users/max/.pyenv/versions/$(PYTHON_VERSION)
 # The directory containing Python.h
-PYTHON_INCL_DIR := $(HFS)/python/include/python$(PYTHON_VERSION)
+##PYTHON_INCL_DIR := $(HFS)/python/include/python$(PYTHON_VERSION)
+# PYTHON_INCL_DIR := /Users/max/.pyenv/versions/3.5.3/include/python$(PYTHON_VERSION)m
+PYTHON_INCL_DIR := $(PYTHONDIR)/include/python$(PYTHON_VERSION)
 # The directory containing pyconfig.h
 PYCONFIG_INCL_DIR := $(PYTHON_INCL_DIR)
 # The directory containing libpython
-PYTHON_LIB_DIR := $(HFS)/python/lib
+##PYTHON_LIB_DIR := $(HFS)/python/lib
+# PYTHON_LIB_DIR := /Users/max/.pyenv/versions/3.5.3/lib
+PYTHON_LIB_DIR := $(PYTHONDIR)/lib
 PYTHON_LIB := -lpython$(PYTHON_VERSION)
 # The directory containing libboost_python
-BOOST_PYTHON_LIB_DIR := /rel/config/studio/baseline/boost/1.55.0.0/gcc-4.8.1.0/python-2.7.10.0/ext/lib/
-BOOST_PYTHON_LIB := -lboost_python-mt
+##BOOST_PYTHON_LIB_DIR := /rel/depot/third_party_build/boost/rhel6-1.46.1-0/lib
+BOOST_PYTHON_LIB_DIR := $(BOOSTINSTDIR)/lib
+# BOOST_PYTHON_LIB := -lboost_python3
+# BOOST_PYTHON_LIB := -lboost_python-mt
+# NEEDED TO ADD BOOST_NUMPY
+# BOOST_PYTHON_LIB := -lboost_python3-mt
+# BOOST_PYTHON_LIB := -lboost_numpy3 -lboost_python3-mt
+# BOOST_PYTHON_LIB := -lboost_numpy3 -lboost_python3
+BOOST_PYTHON_LIB := -lboost_numpy3-clang-darwin42-mt-x64-1_66 -lboost_python3-clang-darwin42-mt-x64-1_66
 # The directory containing arrayobject.h
 # (leave blank if NumPy is unavailable)
-NUMPY_INCL_DIR := /rel/lang/python/2.7.9-1/lib/python2.7/site-packages/numpy/core/include/numpy/
+##NUMPY_INCL_DIR := /rel/map/generic-2013.22/include
+# NUMPY DOESN'T WORK
+# NUMPY_INCL_DIR := /Users/max/Applications/blender-2.79-macOS-10.6/blender.app/Contents/Resources/2.79/python/lib/python3.5/site-packages/numpy/core/include/numpy 
+NUMPY_INCL_DIR := $(PYTHONDIR)/lib/python$(PYTHON_VERSION)/site-packages/numpy/core/include/numpy
 # The Epydoc executable
 # (leave blank if Epydoc is unavailable)
-EPYDOC := /rel/map/generic_default-2014.24.237/bin/epydoc
+##EPYDOC := /rel/map/generic_default-2014.24.237/bin/epydoc
+#EPYDOC := epydoc
 # Set PYTHON_WRAP_ALL_GRID_TYPES to "yes" to specify that the Python module
 # should expose (almost) all of the grid types defined in openvdb.h
 # Otherwise, only FloatGrid, BoolGrid and Vec3SGrid will be exposed
@@ -193,7 +254,7 @@ DOXYGEN := doxygen
 # Ideally, users shouldn't need to change anything below this line.
 #
 
-SHELL = /bin/bash
+shell = /bin/bash
 
 # Turn off implicit rules for speed.
 .SUFFIXES:
@@ -203,18 +264,21 @@ ifneq (,$(INSTALL_DIR))
 endif
 
 # Determine the platform.
-ifeq ("$(OS)","Windows_NT")
-    WINDOWS_NT := 1
-else
-    UNAME_S := $(shell uname -s)
-    ifeq ("$(UNAME_S)","Linux")
-        LINUX := 1
-    else
-        ifeq ("$(UNAME_S)","Darwin")
-            MBSD := 1
-        endif
-    endif
-endif
+# ifeq ("$(OS)","Windows_NT")
+#     WINDOWS_NT := 1
+# else
+#     UNAME_S := $(shell uname -s)
+#     ifeq ("$(UNAME_S)","Linux")
+#         LINUX := 1
+#     else
+#         ifeq ("$(UNAME_S)","Darwin")
+#             MBSD := 1
+#         endif
+#     endif
+# endif
+
+# Force Darwin
+MBSD := 1
 
 ifeq (yes,$(strip $(debug)))
     OPTIMIZE := -g
@@ -621,9 +685,8 @@ PYTHON_SRC_NAMES := \
     python/pyVec3Grid.cc \
 #
 PYCXXFLAGS := -fPIC -isystem python -isystem $(PYTHON_INCL_DIR) -isystem $(PYCONFIG_INCL_DIR)
-ifneq (,$(strip $(NUMPY_INCL_DIR)))
 PYCXXFLAGS += -isystem $(NUMPY_INCL_DIR) -DPY_OPENVDB_USE_NUMPY
-endif
+
 ifneq (no,$(strip $(PYTHON_WRAP_ALL_GRID_TYPES)))
 PYCXXFLAGS += -DPY_OPENVDB_WRAP_ALL_GRID_TYPES
 endif
@@ -673,7 +736,7 @@ else
 LIBOPENVDB_SHARED_NAME := $(LIBOPENVDB_NAME).dylib
 LIBOPENVDB_SHARED := $(LIBOPENVDB_NAME).$(LIB_VERSION).dylib
 LIBOPENVDB_SONAME := $(LIBOPENVDB_NAME).$(SO_VERSION).dylib
-LIBOPENVDB_SONAME_FLAGS := -Wl,-install_name,$(DESTDIR_LIB_DIR)/$(LIBOPENVDB_SONAME)
+LIBOPENVDB_SONAME_FLAGS := -Wl, -install_name,$(DESTDIR_LIB_DIR)/$(LIBOPENVDB_SONAME)
 endif
 
 # TODO: libopenvdb_viewer is currently built into vdb_view and is not installed separately.
@@ -688,14 +751,17 @@ else
 LIBVIEWER_SHARED_NAME := $(LIBVIEWER_NAME).dylib
 LIBVIEWER_SHARED := $(LIBVIEWER_NAME).$(LIB_VERSION).dylib
 LIBVIEWER_SONAME := $(LIBVIEWER_NAME).$(SO_VERSION).dylib
-LIBVIEWER_SONAME_FLAGS := -Wl,-install_name,$(DESTDIR_LIB_DIR)/$(LIBVIEWER_SONAME)
+LIBVIEWER_SONAME_FLAGS := -Wl, -install_name,$(DESTDIR_LIB_DIR)/$(LIBVIEWER_SONAME)
 endif
 
 PYTHON_MODULE_NAME=pyopenvdb
 PYTHON_MODULE := $(PYTHON_MODULE_NAME).so
 PYTHON_SONAME := $(PYTHON_MODULE_NAME).so.$(SO_VERSION)
 ifndef MBSD
-PYTHON_SONAME_FLAGS := -Wl,-soname,$(PYTHON_SONAME)
+PYTHON_SONAME_FLAGS := -Wl, -undefined dynamic_lookup, -soname,$(PYTHON_SONAME)
+# FIXME: trying linking without python libs
+else
+PYTHON_SONAME_FLAGS := -Wl, -undefined dynamic_lookup #, -soname $(PYTHON_SONAME)
 endif
 
 ifeq (no,$(strip $(shared)))
@@ -724,7 +790,7 @@ ALL_PRODUCTS := \
     $(LIBOPENVDB_SHARED_NAME) \
     $(LIBOPENVDB_SONAME) \
     $(PYTHON_MODULE) \
-#
+
 
 .SUFFIXES: .o .cc
 
@@ -734,7 +800,8 @@ ALL_PRODUCTS := \
 	@echo "Building $@ because of $(call list_deps)"
 	$(CXX) -c $(CXXFLAGS) -fPIC -o $@ $<
 
-all: lib python vdb_lod vdb_print vdb_render vdb_test depend
+#all: lib python vdb_lod vdb_print vdb_render vdb_test depend
+all: lib python depend
 
 $(OBJ_NAMES): %.o: %.cc
 	@echo "Building $@ because of $(call list_deps)"
@@ -835,6 +902,19 @@ endif
 
 
 # Build the Python module
+# $(PYTHON_OBJ_NAMES): $(PYTHON_INCLUDE_NAMES)
+# $(PYTHON_OBJ_NAMES): %.o: %.cc
+# 	@echo "Building $@ because of $(list_deps)"
+# 	$(CXX) -c $(CXXFLAGS) -I . $(PYCXXFLAGS) -o $@ $<
+# $(PYTHON_MODULE): $(LIBOPENVDB) $(PYTHON_OBJ_NAMES)
+# 	@echo "Building $@ because of $(list_deps)"
+# 	$(CXX) $(CXXFLAGS) $(PYCXXFLAGS) -shared $(PYTHON_SONAME_FLAGS) -o $@ $(PYTHON_OBJ_NAMES) \
+# 	    -Wl,-rpath,$(PYTHON_LIB_DIR) -L$(PYTHON_LIB_DIR) $(PYTHON_LIB) \
+# 	    -Wl,-rpath,$(BOOST_PYTHON_LIB_DIR) -L$(BOOST_PYTHON_LIB_DIR) $(BOOST_PYTHON_LIB) \
+# 	    $(LIBOPENVDB_RPATH) -L$(CURDIR) $(LIBOPENVDB) \
+# 	    $(LIBS_RPATH) $(CONCURRENT_MALLOC_LIB)
+
+# this is out of desperation... manually remove python libs
 $(PYTHON_OBJ_NAMES): $(PYTHON_INCLUDE_NAMES)
 $(PYTHON_OBJ_NAMES): %.o: %.cc
 	@echo "Building $@ because of $(list_deps)"
@@ -842,10 +922,10 @@ $(PYTHON_OBJ_NAMES): %.o: %.cc
 $(PYTHON_MODULE): $(LIBOPENVDB) $(PYTHON_OBJ_NAMES)
 	@echo "Building $@ because of $(list_deps)"
 	$(CXX) $(CXXFLAGS) $(PYCXXFLAGS) -shared $(PYTHON_SONAME_FLAGS) -o $@ $(PYTHON_OBJ_NAMES) \
-	    -Wl,-rpath,$(PYTHON_LIB_DIR) -L$(PYTHON_LIB_DIR) $(PYTHON_LIB) \
 	    -Wl,-rpath,$(BOOST_PYTHON_LIB_DIR) -L$(BOOST_PYTHON_LIB_DIR) $(BOOST_PYTHON_LIB) \
 	    $(LIBOPENVDB_RPATH) -L$(CURDIR) $(LIBOPENVDB) \
 	    $(LIBS_RPATH) $(CONCURRENT_MALLOC_LIB)
+
 
 ifeq (yes,$(has_python))
 ifneq (,$(strip $(EPYDOC)))
