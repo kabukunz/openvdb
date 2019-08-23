@@ -33,8 +33,6 @@
 # # blender module dir
 # export BLENDER_MODDIR=/Users/max/Developer/Library/Blender/blender-2.79a-RC/blender.app/Contents/Resources/2.79/scripts/addons/modules
 
-# copy makefile
-cp $SETUP_BASE/openvdb/Makefile $OPENVDBDIR/Makefile
 
 # build openvdb
 cd $OPENVDBDIR

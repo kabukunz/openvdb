@@ -63,12 +63,10 @@ export LIBRARY_BASE=/Volumes/Code/Library
 export OPENVDBDIR=$LIBRARY_BASE/Graphics/openvdb/openvdb 
 export OPENVDBLIB=$OPENVDBDIR/build/python/lib/python${PYTHON_VERSION}
 
-# copy this Makefile over openvdb one
-cp $SETUP_BASE/openvdb/Makefile $OPENVDBDIR/Makefile
 
 
 # 
-# ***** CHANGE TO BOOST DIR *****
+# ***** CHANGE TO BOOST / BLOSC DIR *****
 # 
 
 # these two are built from source

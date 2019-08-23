@@ -1,5 +1,0 @@
-@kabu: Yeah, on Windows I pretty much compiled everything from source (except Python) using cmake. Dependencies -> OpenVDB shared libs -> OpenVDB Python module -> PyOpenVDB with Numpy 1.13, in order of milestones. A lot of tweaking configuration files and source code to get it running. Boost 1.66, c-blosc-1.14.3, glew-2.1.0, ilmbase-2.2.1, openexr-2.2.1, tbb2017, zlib-1.2.11.
-
-On Linux it was 100x easier. Just configure it to run Python module with Numpy and make -j8. 
-
-@kabu: Have you tried that PyOpenVDB actually works? "import pyopenvdb as vdb; g=vdb.FloatGrid(); dir(g)" check that all the functions are there. I was able to import earlier, even if PyOpenVDB was broken. After that it's just checking that you have the right Python version and that the operating system can find all the dynamically linked libraries. On Linux you could just run "ldd pyopenvdb.so" I don't know about Mac.

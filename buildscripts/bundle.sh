@@ -1,6 +1,6 @@
 #! /bin/bash
 
-source $SETUP_BASE/openvdb/setup.sh
+source $SETUP_BASE/buildscripts/setup.sh
 
 # prepare tmp dir
 rm -rf $OPENVDB_MODULES

@@ -1,6 +1,6 @@
 #! /bin/bash
 
-source $SETUP_BASE/openvdb/setup.sh
+source $SETUP_BASE/buildscripts/setup.sh
 
 # install
 
