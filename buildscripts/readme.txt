@@ -1,3 +1,5 @@
+NOTE: as of 08/23/2019 this is not working anymore
+
 ***** BUILDING OPENVDB FOR MAC OS *****
 
 - you need XCode Development kit from Apple, and command line tools
